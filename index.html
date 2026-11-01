@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Watched</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--ink:#16212b;--mute:#5d6b78;--line:#d5dce3;--accent:#0e7c86;--alert:#d9480f;color-scheme:light light}
+@media (prefers-color-scheme:dark){:root{--bg:#10171d;--panel:#18222b;--ink:#e6edf3;--mute:#93a1ae;--line:#2a3743;--accent:#3cc0cc;--alert:#ff8a4c;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+main{max-width:560px;margin:0 auto;padding:16px}
+h1{font-size:1.6rem;margin:0 0 2px}.sub{color:var(--mute);margin:0 0 16px}
+.role{display:block;width:100%;text-align:left;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:10px;font:inherit}
+.role b{display:block;font-size:1.1rem}.role span{color:var(--mute);font-size:.92rem}
+.stage{position:relative;aspect-ratio:4/3;background:#0d141a;border-radius:14px;overflow:hidden;border:3px solid transparent;transition:border-color .2s}
+.stage.hit{border-color:var(--alert)}
+.stage video{width:100%;height:100%;object-fit:cover;display:block}
+.off{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#9fb0bd;padding:24px;font-size:.95rem}
+.hud{position:absolute;left:10px;top:10px;color:#fff;font-size:.8rem}
+.live{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);padding:3px 9px;border-radius:99px}
+.live i{width:8px;height:8px;border-radius:50%;background:#888}.live.on i{background:var(--alert)}
+.meter{height:6px;background:var(--line);border-radius:9px;margin:12px 0;overflow:hidden}
+.meter b{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+button.btn{border:0;background:var(--accent);color:#fff;padding:11px 16px;border-radius:10px;font:inherit;font-weight:600}
+button.btn.alt{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+button.sm{padding:5px 10px;font-size:.85rem}
+textarea{width:100%;height:70px;font:12px/1.3 monospace;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.step{font-weight:600;margin:14px 0 4px}
+label{display:flex;align-items:center;gap:8px;color:var(--mute);flex:1}input[type=range]{flex:1;accent-color:var(--accent)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:14px}
+.panel h2{font-size:1rem;margin:0 0 8px}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}li{display:flex;gap:10px;align-items:center}
+li img{width:84px;height:63px;object-fit:cover;border-radius:8px;background:#0d141a}
+small,.note{color:var(--mute)}.note{font-size:.85rem;margin-top:14px}.err{color:var(--alert);font-size:.92rem}
+[hidden]{display:none!important}
+</style></head><body><main>
+<section id="home">
+<h1>Watched</h1><p class="sub">Use an old phone as a security camera and watch it from your current one.</p>
+<button class="role" id="rc"><b>This phone is the camera</b><span>Prop it up and keep it plugged in.</span></button>
+<button class="role" id="rv"><b>This phone is the viewer</b><span>Watch live and get motion alerts and clips.</span></button>
+<p class="note">Both phones must be on the same Wi-Fi. Video goes straight between the phones and is never uploaded.</p>
+</section>
+
+<section id="cam" hidden>
+<div class="stage" id="sA"><video id="vA" playsinline muted autoplay></video>
+<div class="hud"><span class="live" id="lvA"><i></i><span id="stA">Starting</span></span></div></div>
+<div class="meter"><b id="mt"></b></div>
+<div id="pairC">
+<div class="step">Step 1. Send this code to the viewer phone</div>
+<textarea id="offer" readonly aria-label="Camera code"></textarea>
+<div class="row"><button class="btn" id="sendO">Send code</button><button class="btn alt" id="copyO">Copy</button></div>
+<div class="step">Step 2. Paste the reply from the viewer</div>
+<textarea id="ans" aria-label="Viewer reply"></textarea>
+<div class="row"><button class="btn" id="applyAns">Connect</button></div>
+</div>
+<div class="row"><label>Sensitivity <input type="range" id="sens" min="10" max="95" value="60"></label></div>
+<div class="row"><button class="btn alt" id="flip">Flip camera</button><button class="btn alt" id="again">New code</button><button class="btn" id="stopC">Stop</button></div>
+<p class="err" id="errC" hidden></p>
+</section>
+
+<section id="view" hidden>
+<div id="pairV">
+<div class="step">Step 1. Paste the code from the camera phone</div>
+<textarea id="offIn" aria-label="Camera code"></textarea>
+<div class="row"><button class="btn" id="mk">Create reply</button></div>
+<div id="replyBox" hidden><div class="step">Step 2. Send this reply back to the camera phone</div>
+<textarea id="reply" readonly aria-label="Reply"></textarea>
+<div class="row"><button class="btn" id="sendR">Send reply</button><button class="btn alt" id="copyR">Copy</button></div></div>
+</div>
+<div class="stage" id="sB" style="margin-top:12px"><video id="vB" playsinline muted autoplay></video>
+<div class="off" id="offB">Waiting for the camera.</div>
+<div class="hud"><span class="live" id="lvB"><i></i><span id="stB">Not connected</span></span></div></div>
+<div class="row"><button class="btn" id="stopV">Disconnect</button></div>
+<p class="err" id="errV" hidden></p>
+<div class="panel"><h2>Alerts and clips</h2><p class="note" id="emp" style="margin:0">No motion yet.</p><ul id="log"></ul></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+const P=(window.Capacitor&&Capacitor.Plugins)||{};
+const vA=$('#vA'),vB=$('#vB');
+let pc=null,dc=null,stream=null,facing='environment',timers=[],wl=null,prev=null,last=0,rec=null,chunks=[],recTimer=null;
+const show=id=>['home','cam','view'].forEach(k=>$('#'+k).hidden=k!=id);
+const err=(k,t)=>{const e=$('#err'+k);e.textContent=t;e.hidden=!t};
+const every=(f,ms)=>timers.push(setInterval(f,ms));
+const flash=id=>{$('#'+id).classList.add('hit');setTimeout(()=>$('#'+id).classList.remove('hit'),1500)};
+function enc(d){return 'WATCHED:'+btoa(JSON.stringify({type:d.type,sdp:d.sdp}))}
+function dec(t){const m=/WATCHED:([A-Za-z0-9+\/=]+)/.exec(t||'');if(!m)return null;try{return JSON.parse(atob(m[1]))}catch(e){return null}}
+function waitIce(p){return new Promise(r=>{if(p.iceGatheringState=='complete')return r();const t=setTimeout(r,4000);p.addEventListener('icegatheringstatechange',()=>{if(p.iceGatheringState=='complete'){clearTimeout(t);r()}})})}
+async function send(text){
+ if(P.Share){try{await P.Share.share({title:'Watched pairing code',text})}catch(e){}}
+ else if(navigator.share){try{await navigator.share({text})}catch(e){}}
+}
+function copy(id){const t=$(id);t.select();try{navigator.clipboard.writeText(t.value)}catch(e){document.execCommand('copy')}}
+$('#sendO').onclick=()=>send($('#offer').value);$('#copyO').onclick=()=>copy('#offer');
+$('#sendR').onclick=()=>send($('#reply').value);$('#copyR').onclick=()=>copy('#reply');
+function closePc(){if(pc){pc.onconnectionstatechange=null;pc.close()}pc=null;dc=null}
+function stopAll(){
+ timers.forEach(clearInterval);timers=[];closePc();
+ if(rec&&rec.state=='recording')rec.stop();
+ if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;vA.srcObject=null;vB.srcObject=null;
+ if(wl){wl.release().catch(()=>{});wl=null}prev=null;$('#mt').style.width='0';
+}
+const home=()=>{stopAll();show('home')};$('#stopC').onclick=home;$('#stopV').onclick=home;
+
+/* Camera phone */
+$('#rc').onclick=camStart;
+async function gum(){return navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:960}},audio:false})}
+async function camStart(){
+ stopAll();show('cam');err('C','');$('#ans').value='';$('#offer').value='';$('#lvA').classList.remove('on');$('#stA').textContent='Starting';
+ try{stream=await gum()}catch(e){err('C','Couldn’t start the camera. Allow camera access for Watched in your phone settings. ['+(e&&e.name||'error')+']');return}
+ vA.srcObject=stream;
+ try{wl=await navigator.wakeLock.request('screen')}catch(e){}
+ every(tick,250);await makeOffer();
+}
+async function makeOffer(){
+ closePc();$('#stA').textContent='Making code';$('#offer').value='';
+ pc=new RTCPeerConnection(ICE);const p=pc;
+ stream.getTracks().forEach(t=>p.addTrack(t,stream));
+ dc=p.createDataChannel('alerts');
+ p.onconnectionstatechange=()=>{
+  const s=p.connectionState;$('#lvA').classList.toggle('on',s=='connected');
+  $('#stA').textContent=s=='connected'?'Viewer watching':(s=='failed'||s=='disconnected'?'Lost. Tap New code':'Connecting');
+ };
+ await p.setLocalDescription(await p.createOffer());await waitIce(p);
+ $('#offer').value=enc(p.localDescription);$('#stA').textContent='Waiting for viewer';
+}
+$('#again').onclick=()=>stream&&makeOffer();
+$('#applyAns').onclick=async()=>{
+ const a=dec($('#ans').value);
+ if(!a||a.type!='answer'){err('C','That isn’t a viewer reply. Paste the full message that starts with WATCHED:');return}
+ try{err('C','');await pc.setRemoteDescription(a)}catch(e){err('C','Couldn’t connect with that reply. Tap New code and try again.')}
+};
+$('#flip').onclick=async()=>{
+ facing=facing=='environment'?'user':'environment';
+ try{const ns=await gum(),t=ns.getVideoTracks()[0];
+  if(pc)pc.getSenders().forEach(s=>s.track&&s.replaceTrack(t));
+  stream.getTracks().forEach(x=>x.stop());stream=ns;vA.srcObject=ns;prev=null}catch(e){err('C','Couldn’t switch cameras.')}
+};
+const cv=document.createElement('canvas');cv.width=64;cv.height=48;
+const cx=cv.getContext('2d',{willReadFrequently:true});
+function tick(){
+ if(vA.readyState<2)return;
+ cx.drawImage(vA,0,0,64,48);
+ const d=cx.getImageData(0,0,64,48).data,g=new Uint8Array(3072);
+ for(let i=0;i<3072;i++)g[i]=d[i*4]*.3+d[i*4+1]*.59+d[i*4+2]*.11;
+ if(prev){
+  let c=0,x0=64,x1=-1,y0=48,y1=-1;
+  for(let i=0;i<3072;i++)if(Math.abs(g[i]-prev[i])>28){c++;const x=i%64,y=(i/64)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  const r=c/3072,sv=+$('#sens').value,thr=.002+(100-sv)/100*.06;
+  $('#mt').style.width=Math.min(100,r/thr*50)+'%';
+  const person=c>=30&&r<.6&&(y1-y0)>=8+(100-sv)/100*10&&(x1-x0)>=4&&c/((x1-x0+1)*(y1-y0+1))>.25;
+  const now=Date.now();
+  if(r>thr&&person&&now-last>4000){last=now;flash('sA');if(dc&&dc.readyState=='open')dc.send('{"t":"motion"}')}
+ }
+ prev=g;
+}
+
+/* Viewer phone */
+$('#rv').onclick=()=>{stopAll();show('view');err('V','');$('#offIn').value='';$('#replyBox').hidden=true;$('#offB').hidden=false;$('#stB').textContent='Not connected';$('#lvB').classList.remove('on')};
+$('#mk').onclick=async()=>{
+ const o=dec($('#offIn').value);
+ if(!o||o.type!='offer'){err('V','That isn’t a camera code. Paste the full message that starts with WATCHED:');return}
+ err('V','');closePc();pc=new RTCPeerConnection(ICE);const p=pc;
+ p.ontrack=e=>{vB.srcObject=e.streams[0];$('#offB').hidden=true};
+ p.ondatachannel=e=>{e.channel.onmessage=ev=>{try{if(JSON.parse(ev.data).t=='motion')onAlert()}catch(x){}}};
+ p.onconnectionstatechange=()=>{
+  const s=p.connectionState;$('#lvB').classList.toggle('on',s=='connected');
+  $('#stB').textContent=s=='connected'?'Live':(s=='failed'?'Connection lost':'Connecting');
+  if(s=='connected')$('#pairV').hidden=true;
+  if(s=='failed')err('V','Couldn’t connect. Check both phones are on the same Wi-Fi, then start again.');
+ };
+ try{await p.setRemoteDescription(o);await p.setLocalDescription(await p.createAnswer());await waitIce(p)}
+ catch(e){err('V','Couldn’t use that code. Ask for a new one.');return}
+ $('#reply').value=enc(p.localDescription);$('#replyBox').hidden=false;$('#stB').textContent='Waiting for camera';
+};
+function onAlert(){
+ const s=document.createElement('canvas');s.width=320;s.height=240;s.getContext('2d').drawImage(vB,0,0,320,240);
+ $('#emp').hidden=true;
+ const li=document.createElement('li'),t=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
+ li.innerHTML='<img alt="Snapshot" src="'+s.toDataURL('image/jpeg',.6)+'"><div><strong>Person-sized movement</strong><br><small>'+t+'</small><br><small class="st">Recording clip…</small></div>';
+ const ul=$('#log');ul.prepend(li);while(ul.children.length>12)ul.lastChild.remove();
+ flash('sB');if(navigator.vibrate)navigator.vibrate(200);startRec(li.querySelector('.st'));
+}
+function startRec(st){
+ const ms=vB.srcObject;
+ if(rec&&rec.state=='recording'){clearTimeout(recTimer);recTimer=setTimeout(()=>rec.stop(),10000);st.textContent='Part of the clip above';return}
+ if(!ms||typeof MediaRecorder=='undefined'){st.textContent='Clips aren’t supported here';return}
+ const type=['video/webm;codecs=vp8','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t))||'';
+ const r=new MediaRecorder(ms,type?{mimeType:type}:{});chunks=[];rec=r;
+ r.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+ r.onstop=()=>{
+  const b=new Blob(chunks,{type:r.mimeType||'video/webm'});
+  if(!b.size){st.textContent='';return}
+  const ext=/mp4/.test(b.type)?'mp4':'webm',btn=document.createElement('button');
+  btn.className='btn alt sm';btn.textContent='Save clip ('+(b.size/1048576).toFixed(1)+' MB)';
+  btn.onclick=async()=>{try{await saveClip(b,ext);btn.textContent='Saved or shared'}catch(e){err('V','Couldn’t save the clip.')}};
+  st.textContent='';st.appendChild(btn);
+ };
+ r.start(1000);recTimer=setTimeout(()=>r.stop(),10000);
+}
+async function saveClip(b,ext){
+ const name='watched-'+Date.now()+'.'+ext;
+ if(P.Filesystem&&P.Share){
+  const data=await new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result.split(',')[1]);f.readAsDataURL(b)});
+  const w=await P.Filesystem.writeFile({path:name,data,directory:'CACHE'});
+  await P.Share.share({title:'Watched clip',files:[w.uri]});
+ }else{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click()}
+}
+</script></body></html>
